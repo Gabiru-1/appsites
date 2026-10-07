@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Editor — AppSites</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="editor">
+    <div>
+      <header class="topbar">
+        <a class="btn btn-sm" href="/" title="Voltar para minhas páginas">← <span class="hide-sm">Páginas</span></a>
+        <input class="title-input" id="title" aria-label="Nome da página" maxlength="120">
+        <span class="save-state hide-sm" id="save-state" aria-live="polite"></span>
+        <div class="spacer"></div>
+        <div class="group hide-sm" role="group" aria-label="Tamanho da tela">
+          <button class="btn btn-icon btn-sm active" data-device="desktop" title="Computador">🖥</button>
+          <button class="btn btn-icon btn-sm" data-device="tablet" title="Tablet">▭</button>
+          <button class="btn btn-icon btn-sm" data-device="mobile" title="Celular">📱</button>
+        </div>
+        <div class="group">
+          <button class="btn btn-icon btn-sm" id="undo" title="Desfazer (Ctrl+Z)">↶</button>
+          <button class="btn btn-icon btn-sm" id="redo" title="Refazer (Ctrl+Shift+Z)">↷</button>
+        </div>
+        <a class="btn btn-sm hide-sm" id="export" title="Baixar como arquivo HTML">Exportar</a>
+        <a class="btn btn-sm" id="view" target="_blank" rel="noopener">Ver ↗</a>
+        <button class="btn btn-sm" id="publish"></button>
+        <button class="btn btn-primary btn-sm" id="save" title="Salvar (Ctrl+S)">Salvar</button>
+      </header>
+      <nav class="mobile-tabs" aria-label="Seções do editor">
+        <button class="tab active" data-show="left">Blocos</button>
+        <button class="tab" data-show="canvas">Prévia</button>
+        <button class="tab" data-show="right">Editar bloco</button>
+      </nav>
+    </div>
+
+    <div class="editor-main">
+      <aside class="sidebar show" id="left">
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-tab="add" role="tab">Adicionar</button>
+          <button class="tab" data-tab="layers" role="tab">Estrutura</button>
+          <button class="tab" data-tab="page" role="tab">Página</button>
+        </div>
+        <div class="panel" id="tab-add"></div>
+        <div class="panel" id="tab-layers" hidden></div>
+        <div class="panel" id="tab-page" hidden></div>
+      </aside>
+
+      <section class="canvas-wrap" id="canvas-wrap">
+        <div class="canvas" id="canvas">
+          <iframe id="frame" title="Pré-visualização da página"></iframe>
+        </div>
+      </section>
+
+      <aside class="sidebar sidebar-right" id="right">
+        <div class="panel" id="props"></div>
+      </aside>
+    </div>
+  </div>
+
+  <script src="/js/blocks.js"></script>
+  <script src="/js/render.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/editor.js"></script>
+</body>
+</html>

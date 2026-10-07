@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AppSites — Minhas páginas</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-logo">A</span> AppSites</a>
+    <div class="spacer"></div>
+    <button class="btn btn-primary" id="btn-new">+ Nova página</button>
+  </header>
+
+  <main class="dash">
+    <div class="dash-head">
+      <div>
+        <h1>Minhas páginas</h1>
+        <p>Crie, edite e publique páginas sem escrever código.</p>
+      </div>
+      <input class="input" id="search" type="search" placeholder="Buscar páginas…" style="max-width:260px">
+    </div>
+    <div id="list"></div>
+  </main>
+
+  <script src="/js/blocks.js"></script>
+  <script src="/js/render.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

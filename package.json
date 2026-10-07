@@ -1,0 +1,15 @@
+{
+  "name": "appsites",
+  "version": "1.0.0",
+  "description": "Sistema de criação de páginas e sites com editor visual por blocos",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
