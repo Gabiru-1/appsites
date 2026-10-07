@@ -27,6 +27,10 @@
       body: body ? JSON.stringify(body) : undefined,
     });
     const data = await res.json().catch(() => ({}));
+    if (res.status === 401 && !location.pathname.startsWith('/login')) {
+      location.href = '/login?voltar=' + encodeURIComponent(location.pathname + location.search + location.hash);
+      throw new Error('Faça login para continuar');
+    }
     if (!res.ok) throw new Error(data.error || 'Erro ' + res.status);
     return data;
   }
@@ -65,5 +69,20 @@
     }
   }
 
-  window.UI = { h, api, toast, modal, formatDate };
+  function money(v) {
+    return (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+    const ta = h('textarea', { style: 'position:fixed;opacity:0' });
+    ta.value = text;
+    document.body.append(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    return Promise.resolve();
+  }
+
+  window.UI = { h, api, toast, modal, formatDate, money, copyText };
 })();

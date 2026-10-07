@@ -1,7 +1,7 @@
 {
   "name": "appsites",
   "version": "1.0.0",
-  "description": "Sistema de criação de páginas e sites com editor visual por blocos",
+  "description": "Prospecção de clientes no Google Maps + criação e publicação de sites com modelos",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -11,5 +11,8 @@
   "engines": {
     "node": ">=18"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0"
+  }
 }

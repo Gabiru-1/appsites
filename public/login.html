@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Entrar — AppSites</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body class="auth-page">
+  <main class="auth-card">
+    <div class="brand" style="justify-content:center;margin-bottom:8px"><span class="brand-logo">A</span> AppSites</div>
+    <p class="auth-sub" id="sub">Prospecte clientes e crie sites em minutos.</p>
+    <div class="tabs" role="tablist" id="auth-tabs">
+      <button class="tab active" data-mode="login" role="tab">Entrar</button>
+      <button class="tab" data-mode="register" role="tab">Criar conta</button>
+    </div>
+    <form id="form" class="auth-form" novalidate>
+      <label class="field" id="name-field" hidden><span>Seu nome</span><input type="text" name="name" autocomplete="name" maxlength="80"></label>
+      <label class="field"><span>E-mail</span><input type="text" name="email" inputmode="email" autocomplete="email" required></label>
+      <label class="field"><span>Senha</span><input type="password" name="password" autocomplete="current-password" required minlength="8"></label>
+      <p class="auth-error" id="error" role="alert" hidden></p>
+      <button class="btn btn-primary btn-block" type="submit" id="submit">Entrar</button>
+    </form>
+  </main>
+  <script src="/js/ui.js"></script>
+  <script>
+  (function () {
+    const { api } = window.UI;
+    const form = document.getElementById('form');
+    const err = document.getElementById('error');
+    let mode = 'login';
+
+    function setMode(m) {
+      mode = m;
+      document.querySelectorAll('#auth-tabs .tab').forEach((t) => t.classList.toggle('active', t.dataset.mode === m));
+      document.getElementById('name-field').hidden = m !== 'register';
+      document.getElementById('submit').textContent = m === 'register' ? 'Criar conta' : 'Entrar';
+      form.password.autocomplete = m === 'register' ? 'new-password' : 'current-password';
+      err.hidden = true;
+    }
+    document.querySelectorAll('#auth-tabs .tab').forEach((t) => t.addEventListener('click', () => setMode(t.dataset.mode)));
+
+    api('GET', '/api/auth/config').then((cfg) => {
+      if (!cfg.hasUsers) {
+        setMode('register');
+        document.getElementById('sub').textContent = 'Primeiro acesso: crie a conta de administrador.';
+        document.querySelector('[data-mode=login]').hidden = true;
+      } else if (!cfg.allowSignup) {
+        document.querySelector('[data-mode=register]').hidden = true;
+      }
+    }).catch(() => {});
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err.hidden = true;
+      const btn = document.getElementById('submit');
+      btn.disabled = true;
+      try {
+        await api('POST', '/api/auth/' + mode, {
+          name: form.name.value, email: form.email.value, password: form.password.value,
+        });
+        const back = new URLSearchParams(location.search).get('voltar');
+        location.href = back && back.startsWith('/') && !back.startsWith('//') ? back : '/';
+      } catch (ex) {
+        err.textContent = ex.message;
+        err.hidden = false;
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  })();
+  </script>
+</body>
+</html>

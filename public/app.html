@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AppSites</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="nav" aria-label="Menu principal">
+      <a class="brand" href="#/painel"><span class="brand-logo">A</span> <span>AppSites</span></a>
+      <nav class="nav-links">
+        <a href="#/painel" data-route="painel"><span class="ni">▦</span> Painel</a>
+        <a href="#/prospectar" data-route="prospectar"><span class="ni">⌕</span> Prospectar</a>
+        <a href="#/leads" data-route="leads"><span class="ni">☰</span> Leads</a>
+        <a href="#/criar" data-route="criar"><span class="ni">✚</span> Criar site</a>
+        <a href="#/sites" data-route="sites"><span class="ni">◫</span> Meus sites</a>
+        <a href="#/modelos" data-route="modelos"><span class="ni">❖</span> Modelos</a>
+        <a href="#/config" data-route="config"><span class="ni">⚙</span> Configurações</a>
+      </nav>
+      <div class="nav-user" id="nav-user"></div>
+    </aside>
+    <main class="content" id="view" tabindex="-1"></main>
+  </div>
+
+  <script src="/js/blocks.js"></script>
+  <script src="/js/render.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/app/core.js"></script>
+  <script src="/js/app/dashboard.js"></script>
+  <script src="/js/app/prospect.js"></script>
+  <script src="/js/app/leads.js"></script>
+  <script src="/js/app/sites.js"></script>
+  <script src="/js/app/settings.js"></script>
+  <script>App.start();</script>
+</body>
+</html>

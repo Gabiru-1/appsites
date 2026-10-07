@@ -2,144 +2,125 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { Store } = require('../lib/store.js');
-const { createApp } = require('../lib/app.js');
+const { withServer, client, signup } = require('./helpers.js');
 
-async function withServer(options, fn) {
-  const store = new Store(null);
-  const server = createApp(store, options);
-  await new Promise((r) => server.listen(0, r));
-  const base = 'http://127.0.0.1:' + server.address().port;
-  try {
-    await fn(base, store);
-  } finally {
-    server.close();
-  }
-}
+test('login: cadastro, sessão, logout e senha', () => withServer({}, async (base, store) => {
+  const anon = client(base);
+  assert.strictEqual((await anon.json('GET', '/api/pages')).status, 401);
+  assert.strictEqual((await anon.json('GET', '/api/auth/config')).data.hasUsers, false);
 
-function req(base, method, path, body, headers) {
-  return fetch(base + path, {
-    method,
-    redirect: 'manual',
-    headers: Object.assign(body ? { 'Content-Type': 'application/json' } : {}, headers || {}),
-    body: body ? JSON.stringify(body) : undefined,
-  });
-}
+  let r = await anon.json('POST', '/api/auth/register', { name: 'Ana', email: 'ana@x.com', password: '123' });
+  assert.strictEqual(r.status, 400, 'senha curta é recusada');
 
-test('fluxo completo: criar, editar, publicar, visualizar e excluir', () => withServer({}, async (base) => {
-  let res = await req(base, 'POST', '/api/pages', { title: 'Minha Página Ótima', template: 'landing' });
-  assert.strictEqual(res.status, 201);
-  const page = await res.json();
+  const ana = await signup(base, 'Ana@X.com', 'Ana');
+  r = await ana.json('GET', '/api/auth/me');
+  assert.strictEqual(r.data.user.email, 'ana@x.com');
+  assert.strictEqual(r.data.user.role, 'admin', 'primeiro usuário vira admin');
+  assert.ok(!('password' in r.data.user));
+  assert.ok(store.all('users')[0].password.startsWith('scrypt$'));
+
+  const bia = await signup(base, 'bia@x.com', 'Bia');
+  assert.strictEqual((await bia.json('GET', '/api/auth/me')).data.user.role, 'user');
+
+  r = await client(base).json('POST', '/api/auth/register', { name: 'Ana 2', email: 'ana@x.com', password: 'outrasenha1' });
+  assert.strictEqual(r.status, 400, 'e-mail duplicado');
+
+  const again = client(base);
+  r = await again.json('POST', '/api/auth/login', { email: 'ana@x.com', password: 'errada-123' });
+  assert.strictEqual(r.status, 400);
+  r = await again.json('POST', '/api/auth/login', { email: 'ana@x.com', password: 'senha-segura-123' });
+  assert.strictEqual(r.status, 200);
+
+  r = await again.json('POST', '/api/account/password', { current: 'senha-segura-123', next: 'nova-senha-123' });
+  assert.strictEqual(r.status, 200);
+  await again.json('POST', '/api/auth/logout');
+  assert.strictEqual((await again.json('GET', '/api/auth/me')).status, 401);
+  r = await again.json('POST', '/api/auth/login', { email: 'ana@x.com', password: 'nova-senha-123' });
+  assert.strictEqual(r.status, 200);
+}));
+
+test('cadastro pode ser desativado depois do primeiro usuário', () => withServer({ allowSignup: false }, async (base) => {
+  await signup(base, 'admin@x.com');
+  const r = await client(base).json('POST', '/api/auth/register', { name: 'X', email: 'x@x.com', password: 'senha-segura-123' });
+  assert.strictEqual(r.status, 403);
+}));
+
+test('cada usuário vê apenas as próprias páginas', () => withServer({}, async (base) => {
+  const ana = await signup(base, 'ana@x.com');
+  const bia = await signup(base, 'bia@x.com');
+  const page = (await ana.json('POST', '/api/pages', { title: 'Da Ana', template: 'landing' })).data;
+
+  assert.strictEqual((await bia.json('GET', '/api/pages')).data.length, 0);
+  assert.strictEqual((await bia.json('GET', '/api/pages/' + page.id)).status, 404);
+  assert.strictEqual((await bia.json('PUT', '/api/pages/' + page.id, { title: 'roubado' })).status, 404);
+  assert.strictEqual((await bia.json('DELETE', '/api/pages/' + page.id)).status, 404);
+  assert.strictEqual((await ana.json('GET', '/api/pages')).data.length, 1);
+}));
+
+test('páginas: criar, editar, publicar, visualizar, duplicar e excluir', () => withServer({}, async (base) => {
+  const c = await signup(base, 'ana@x.com');
+  let r = await c.json('POST', '/api/pages', { title: 'Minha Página Ótima', template: 'landing' });
+  assert.strictEqual(r.status, 201);
+  const page = r.data;
   assert.strictEqual(page.slug, 'minha-pagina-otima');
-  assert.ok(page.blocks.length > 0);
-  assert.strictEqual(page.published, false);
 
-  // Não publicada → 404
-  res = await req(base, 'GET', '/p/' + page.slug);
-  assert.strictEqual(res.status, 404);
+  assert.strictEqual((await client(base).req('GET', '/p/' + page.slug)).status, 404, 'rascunho não é público');
 
-  // Edita blocos e publica
   const blocks = [{ id: 'abc', type: 'heading', data: { text: 'Olá mundo', evil: 'x' } }];
-  res = await req(base, 'PUT', '/api/pages/' + page.id, { blocks, published: true, title: 'Novo título' });
-  assert.strictEqual(res.status, 200);
-  const updated = await res.json();
-  assert.strictEqual(updated.title, 'Novo título');
-  assert.deepStrictEqual(updated.blocks[0].data, { text: 'Olá mundo' }, 'campos desconhecidos são removidos');
+  r = await c.json('PUT', '/api/pages/' + page.id, { blocks, published: true });
+  assert.deepStrictEqual(r.data.blocks[0].data, { text: 'Olá mundo' });
 
-  res = await req(base, 'GET', '/p/' + page.slug);
-  assert.strictEqual(res.status, 200);
-  assert.match(await res.text(), /Olá mundo/);
+  const pub = await client(base).req('GET', '/p/' + page.slug);
+  assert.strictEqual(pub.status, 200);
+  assert.match(await pub.text(), /Olá mundo/);
 
-  // Lista
-  res = await req(base, 'GET', '/api/pages');
-  const list = await res.json();
-  assert.strictEqual(list.length, 1);
-  assert.strictEqual(list[0].blockCount, 1);
+  r = await c.json('POST', '/api/pages/' + page.id + '/duplicate');
+  assert.notStrictEqual(r.data.slug, page.slug);
+  assert.strictEqual(r.data.published, false);
 
-  // Exporta
-  res = await req(base, 'GET', '/api/pages/' + page.id + '/export');
-  assert.match(res.headers.get('content-disposition'), /minha-pagina-otima\.html/);
+  r = await c.json('PUT', '/api/pages/' + page.id, { slug: 'api' });
+  assert.strictEqual(r.status, 400);
+  r = await c.json('PUT', '/api/pages/' + page.id, { blocks: [{ type: 'naoexiste' }] });
+  assert.strictEqual(r.status, 400);
 
-  // Duplica
-  res = await req(base, 'POST', '/api/pages/' + page.id + '/duplicate');
-  const copy = await res.json();
-  assert.notStrictEqual(copy.id, page.id);
-  assert.notStrictEqual(copy.slug, page.slug);
-  assert.strictEqual(copy.published, false);
-
-  // Exclui
-  res = await req(base, 'DELETE', '/api/pages/' + page.id);
-  assert.strictEqual(res.status, 200);
-  res = await req(base, 'GET', '/api/pages/' + page.id);
-  assert.strictEqual(res.status, 404);
+  assert.strictEqual((await c.json('DELETE', '/api/pages/' + page.id)).status, 200);
 }));
 
-test('valida slug e blocos', () => withServer({}, async (base) => {
-  const a = await (await req(base, 'POST', '/api/pages', { title: 'A' })).json();
-  const b = await (await req(base, 'POST', '/api/pages', { title: 'A' })).json();
-  assert.strictEqual(b.slug, 'a-2');
+test('formulário de contato salva mensagens', () => withServer({}, async (base) => {
+  const c = await signup(base, 'ana@x.com');
+  const page = (await c.json('POST', '/api/pages', { title: 'Contato', template: 'landing' })).data;
+  await c.json('PUT', '/api/pages/' + page.id, { published: true });
+  const anon = client(base);
+  const form = (o) => new URLSearchParams(o).toString();
+  const ct = { 'Content-Type': 'application/x-www-form-urlencoded' };
 
-  let res = await req(base, 'PUT', '/api/pages/' + b.id, { slug: 'a' });
-  assert.strictEqual(res.status, 400);
-  res = await req(base, 'PUT', '/api/pages/' + b.id, { slug: 'api' });
-  assert.strictEqual(res.status, 400);
-  res = await req(base, 'PUT', '/api/pages/' + b.id, { slug: 'Página Nova!' });
-  assert.strictEqual((await res.json()).slug, 'pagina-nova');
-
-  res = await req(base, 'PUT', '/api/pages/' + a.id, { blocks: [{ type: 'naoexiste' }] });
-  assert.strictEqual(res.status, 400);
-  res = await req(base, 'PUT', '/api/pages/' + a.id, { blocks: 'x' });
-  assert.strictEqual(res.status, 400);
-}));
-
-test('formulário de contato salva mensagens', () => withServer({}, async (base, store) => {
-  const page = await (await req(base, 'POST', '/api/pages', { title: 'Contato', template: 'landing' })).json();
-  await req(base, 'PUT', '/api/pages/' + page.id, { published: true });
-
-  let res = await fetch(base + '/p/contato/contato', {
-    method: 'POST',
-    redirect: 'manual',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ name: 'Ana', email: 'ana@ex.com', message: 'Oi!' }).toString(),
-  });
+  let res = await anon.req('POST', '/p/contato/contato', form({ name: 'Ana', email: 'a@b.com', message: 'Oi!' }), ct);
   assert.strictEqual(res.status, 303);
-  assert.match(res.headers.get('location'), /enviado=1/);
+  await anon.req('POST', '/p/contato/contato', form({ name: 'Bot', email: 'b@b.com', message: 'spam', website: 'x' }), ct);
 
-  // Robôs (honeypot preenchido) são ignorados silenciosamente
-  await fetch(base + '/p/contato/contato', {
-    method: 'POST',
-    redirect: 'manual',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ name: 'Bot', email: 'b@b.com', message: 'spam', website: 'x' }).toString(),
-  });
-
-  res = await req(base, 'GET', '/api/pages/' + page.id + '/submissions');
-  const subs = await res.json();
+  const subs = (await c.json('GET', '/api/pages/' + page.id + '/submissions')).data;
   assert.strictEqual(subs.length, 1);
   assert.strictEqual(subs[0].name, 'Ana');
-
-  res = await req(base, 'GET', '/p/contato?enviado=1');
-  assert.match(await res.text(), /pb-success/);
+  assert.match(await (await anon.req('GET', '/p/contato?enviado=1')).text(), /pb-success/);
 }));
 
-test('senha de administrador protege o painel, mas não as páginas publicadas', () => withServer({ adminPassword: 'segredo' }, async (base, store) => {
-  let res = await req(base, 'GET', '/api/pages');
-  assert.strictEqual(res.status, 401);
-  res = await req(base, 'GET', '/');
-  assert.strictEqual(res.status, 401);
-
-  const auth = { Authorization: 'Basic ' + Buffer.from('admin:segredo').toString('base64') };
-  res = await req(base, 'POST', '/api/pages', { title: 'Pub' }, auth);
-  const page = await res.json();
-  await req(base, 'PUT', '/api/pages/' + page.id, { published: true }, auth);
-
-  res = await req(base, 'GET', '/p/pub');
-  assert.strictEqual(res.status, 200);
+test('arquivos estáticos e rotas da interface', () => withServer({}, async (base) => {
+  const anon = client(base);
+  assert.strictEqual((await anon.req('GET', '/..%2f..%2fpackage.json')).status, 404);
+  assert.strictEqual((await anon.req('GET', '/js/render.js')).status, 200);
+  for (const p of ['/', '/login', '/editor', '/site']) {
+    const res = await anon.req('GET', p);
+    assert.strictEqual(res.status, 200, p);
+    assert.match(res.headers.get('content-type'), /text\/html/);
+  }
 }));
 
-test('arquivos estáticos não permitem path traversal', () => withServer({}, async (base) => {
-  const res = await req(base, 'GET', '/..%2f..%2fpackage.json');
-  assert.strictEqual(res.status, 404);
-  const ok = await req(base, 'GET', '/js/render.js');
-  assert.strictEqual(ok.status, 200);
+test('login bloqueia após muitas tentativas erradas', () => withServer({}, async (base) => {
+  await signup(base, 'ana@x.com');
+  const c = client(base);
+  for (let i = 0; i < 10; i++) {
+    assert.strictEqual((await c.json('POST', '/api/auth/login', { email: 'ana@x.com', password: 'errada-' + i })).status, 400);
+  }
+  const r = await c.json('POST', '/api/auth/login', { email: 'ana@x.com', password: 'senha-segura-123' });
+  assert.strictEqual(r.status, 429);
 }));

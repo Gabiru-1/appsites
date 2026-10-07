@@ -248,6 +248,66 @@
       };
     },
 
+    reviews(d) {
+      const items = (Array.isArray(d.items) ? d.items : []).filter((i) => i && i.text);
+      const stars = (n) => '★★★★★'.slice(0, clamp(n, 0, 5, 5)) + '<span class="pb-star-off">' + '★★★★★'.slice(0, 5 - clamp(n, 0, 5, 5)) + '</span>';
+      return {
+        html:
+          '<div class="pb-container">' +
+          (d.title ? '<h2 class="pb-center">' + esc(d.title) + '</h2>' : '') +
+          (d.rating ? '<p class="pb-center pb-rating-summary"><span class="pb-stars">★★★★★</span> <strong>' + esc(d.rating) + '</strong>' +
+            (d.total ? ' <span class="pb-muted">(' + esc(d.total) + ' avaliações no Google)</span>' : '') + '</p>' : '') +
+          '<div class="pb-grid pb-cols-3">' + items.map((i) =>
+            '<div class="pb-card pb-review"><div class="pb-stars">' + stars(i.stars) + '</div>' +
+            '<p>“' + esc(i.text) + '”</p><strong>' + esc(i.author) + '</strong></div>').join('') + '</div>' +
+          (d.link ? '<p class="pb-center" style="margin-top:24px"><a href="' + esc(safeUrl(d.link)) + '" target="_blank" rel="noopener">Ver todas as avaliações no Google →</a></p>' : '') +
+          '</div>',
+      };
+    },
+
+    hours(d) {
+      const items = (Array.isArray(d.items) ? d.items : []).filter((i) => i && (i.day || i.time));
+      return {
+        html:
+          '<div class="pb-container pb-narrow">' +
+          (d.title ? '<h2 class="pb-center">' + esc(d.title) + '</h2>' : '') +
+          '<dl class="pb-hours">' + items.map((i) => '<div><dt>' + esc(i.day) + '</dt><dd>' + esc(i.time) + '</dd></div>').join('') + '</dl>' +
+          '</div>',
+      };
+    },
+
+    map(d) {
+      const src = 'https://www.google.com/maps?q=' + encodeURIComponent(String(d.address || '')) + '&output=embed';
+      return {
+        html:
+          '<div class="pb-container">' +
+          (d.title ? '<h2 class="pb-center">' + esc(d.title) + '</h2>' : '') +
+          (d.address
+            ? '<div class="pb-map" style="height:' + clamp(d.height, 200, 600, 360) + 'px"><iframe src="' + esc(src) +
+              '" title="Mapa" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>'
+            : '<div class="pb-empty">Informe o endereço para mostrar o mapa</div>') +
+          '</div>',
+      };
+    },
+
+    contactInfo(d) {
+      const wa = String(d.whatsapp || '').replace(/\D/g, '');
+      const rows = [];
+      if (d.phone) rows.push('<li><span>📞</span><a href="tel:' + esc(String(d.phone).replace(/[^\d+]/g, '')) + '">' + esc(d.phone) + '</a></li>');
+      if (wa) rows.push('<li><span>💬</span><a href="https://wa.me/' + esc(wa) + '" target="_blank" rel="noopener">WhatsApp</a></li>');
+      if (d.email) rows.push('<li><span>✉️</span><a href="mailto:' + esc(d.email) + '">' + esc(d.email) + '</a></li>');
+      if (d.address) rows.push('<li><span>📍</span><span>' + esc(d.address) + '</span></li>');
+      if (d.instagram) rows.push('<li><span>📷</span><a href="' + esc(safeUrl(d.instagram)) + '" target="_blank" rel="noopener">Instagram</a></li>');
+      return {
+        html:
+          '<div class="pb-container pb-narrow">' +
+          (d.title ? '<h2 class="pb-center">' + esc(d.title) + '</h2>' : '') +
+          '<ul class="pb-contact-list">' + rows.join('') + '</ul>' +
+          (wa ? '<p class="pb-center"><a class="pb-btn" href="https://wa.me/' + esc(wa) + '" target="_blank" rel="noopener">Chamar no WhatsApp</a></p>' : '') +
+          '</div>',
+      };
+    },
+
     divider(d) {
       const c = color(d.color, '');
       return { html: '<div class="pb-container"><hr' + (c ? ' style="border-color:' + c + '"' : '') + '></div>' };
@@ -359,6 +419,21 @@ hr{border:0;border-top:1px solid color-mix(in srgb,var(--pb-text) 20%,transparen
 .pb-block-divider{padding:16px 0}
 footer.pb-block-footer{padding:32px 0;font-size:.9rem}
 footer.pb-block-footer p{margin:0}
+.pb-stars{color:#f59e0b;letter-spacing:2px}
+.pb-star-off{color:#d1d5db}
+.pb-rating-summary{font-size:1.15rem}
+.pb-review p{font-style:italic;margin:10px 0}
+.pb-hours{margin:16px 0 0;display:grid;gap:0;border:1px solid color-mix(in srgb,var(--pb-text) 12%,transparent);border-radius:12px;overflow:hidden}
+.pb-hours div{display:flex;justify-content:space-between;gap:16px;padding:12px 18px}
+.pb-hours div:nth-child(odd){background:color-mix(in srgb,var(--pb-text) 4%,transparent)}
+.pb-hours dt{font-weight:600}.pb-hours dd{margin:0;text-align:right}
+.pb-map{border-radius:12px;overflow:hidden;margin-top:16px}
+.pb-map iframe{width:100%;height:100%;border:0}
+.pb-contact-list{list-style:none;padding:0;margin:16px 0 24px;display:grid;gap:12px}
+.pb-contact-list li{display:flex;gap:12px;align-items:flex-start;font-size:1.05rem}
+.pb-wa-float{position:fixed;right:20px;bottom:20px;width:60px;height:60px;border-radius:50%;background:#25d366;display:grid;place-items:center;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:50;transition:transform .15s}
+.pb-wa-float:hover{transform:scale(1.08)}
+.pb-wa-float svg{width:32px;height:32px;fill:#fff}
 @media (max-width:720px){
   .pb-cols-3,.pb-cols-4{grid-template-columns:repeat(2,1fr)}
   .pb-block{padding:28px 0}
@@ -395,6 +470,11 @@ footer.pb-block-footer p{margin:0}
       '<style>' + css(s) + (ctx.editor ? EDITOR_CSS : '') + '</style>';
     const blocks = (page && Array.isArray(page.blocks)) ? page.blocks : [];
     let body = blocks.map((b) => renderBlock(b, ctx)).join('\n');
+    const wa = String(s.whatsapp || '').replace(/\D/g, '');
+    if (wa && body) {
+      body += '<a class="pb-wa-float" href="https://wa.me/' + wa + '" target="_blank" rel="noopener" aria-label="Fale conosco no WhatsApp">' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.4.8 3.2.6.5-.1 1.5-.6 1.7-1.2s.2-1.1.1-1.2l-.5-.3z"/></svg></a>';
+    }
     if (!body && ctx.editor) {
       body = '<div class="pb-canvas-empty"><h2>Sua página está vazia</h2><p>Adicione blocos pelo painel à esquerda.</p></div>';
     }

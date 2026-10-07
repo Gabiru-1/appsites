@@ -271,6 +271,93 @@
       },
     },
 
+    reviews: {
+      label: 'Avaliações',
+      icon: '✪',
+      fields: [
+        { key: 'title', label: 'Título', type: 'text' },
+        { key: 'rating', label: 'Nota geral (ex.: 4,8)', type: 'text' },
+        { key: 'total', label: 'Total de avaliações', type: 'text' },
+        { key: 'link', label: 'Link para ver no Google', type: 'url' },
+        {
+          key: 'items', label: 'Avaliações', type: 'items', itemLabel: 'Avaliação',
+          fields: [
+            { key: 'author', label: 'Autor', type: 'text' },
+            { key: 'stars', label: 'Estrelas (1 a 5)', type: 'number', min: 1, max: 5, step: 1 },
+            { key: 'text', label: 'Texto', type: 'textarea' },
+          ],
+          itemDefaults: { author: 'Cliente', stars: 5, text: 'Excelente atendimento!' },
+        },
+      ],
+      defaults: {
+        title: 'O que nossos clientes dizem',
+        rating: '4,9',
+        total: '120',
+        link: '',
+        items: [
+          { author: 'Ana', stars: 5, text: 'Atendimento impecável, recomendo!' },
+          { author: 'Bruno', stars: 5, text: 'Melhor da região, sem dúvidas.' },
+          { author: 'Carla', stars: 5, text: 'Preço justo e muita qualidade.' },
+        ],
+      },
+    },
+
+    hours: {
+      label: 'Horários',
+      icon: '◷',
+      fields: [
+        { key: 'title', label: 'Título', type: 'text' },
+        {
+          key: 'items', label: 'Dias', type: 'items', itemLabel: 'Dia',
+          fields: [
+            { key: 'day', label: 'Dia', type: 'text' },
+            { key: 'time', label: 'Horário', type: 'text' },
+          ],
+          itemDefaults: { day: 'Segunda-feira', time: '08:00 – 18:00' },
+        },
+      ],
+      defaults: {
+        title: 'Horário de funcionamento',
+        items: [
+          { day: 'Segunda a sexta', time: '08:00 – 18:00' },
+          { day: 'Sábado', time: '08:00 – 12:00' },
+          { day: 'Domingo', time: 'Fechado' },
+        ],
+      },
+    },
+
+    map: {
+      label: 'Mapa',
+      icon: '⌖',
+      fields: [
+        { key: 'title', label: 'Título', type: 'text' },
+        { key: 'address', label: 'Endereço (para o mapa)', type: 'text' },
+        { key: 'height', label: 'Altura (px)', type: 'number', min: 200, max: 600, step: 20 },
+      ],
+      defaults: { title: 'Onde estamos', address: 'Avenida Paulista, 1000, São Paulo - SP', height: 360 },
+    },
+
+    contactInfo: {
+      label: 'Informações de contato',
+      icon: '☎',
+      fields: [
+        { key: 'title', label: 'Título', type: 'text' },
+        { key: 'phone', label: 'Telefone', type: 'text' },
+        { key: 'whatsapp', label: 'WhatsApp (só números, com DDD e 55)', type: 'text' },
+        { key: 'email', label: 'E-mail', type: 'text' },
+        { key: 'address', label: 'Endereço', type: 'textarea' },
+        { key: 'instagram', label: 'Instagram (link)', type: 'url' },
+      ],
+      defaults: {
+        title: 'Fale com a gente',
+        phone: '(11) 99999-0000',
+        whatsapp: '5511999990000',
+        email: '',
+        address: 'Avenida Paulista, 1000 - São Paulo, SP',
+        instagram: '',
+      },
+    },
+
     divider: {
       label: 'Divisor',
       icon: '―',
@@ -320,6 +407,7 @@
         { value: '1100', label: 'Larga (1100px)' },
       ],
     },
+    { key: 'whatsapp', label: 'Botão flutuante do WhatsApp', type: 'text', help: 'Número só com dígitos, ex.: 5511999990000. Deixe vazio para esconder.' },
   ];
 
   const DEFAULT_SETTINGS = {
@@ -329,6 +417,7 @@
     textColor: '#1f2937',
     font: 'Inter',
     maxWidth: '1100',
+    whatsapp: '',
   };
 
   function uid() {
