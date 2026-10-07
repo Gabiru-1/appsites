@@ -80,27 +80,43 @@ Na aba **Modelos → Enviar modelo HTML** (só para administradores), envie um a
 
 A lista completa de variáveis aparece na própria aba Modelos. Veja o exemplo em [`templates/exemplo-moderno.html`](templates/exemplo-moderno.html). Arquivos colocados na pasta `templates/` aparecem para todos; a primeira linha pode ser `<!-- modelo: Nome | Descrição -->`.
 
-## Onde hospedar (recomendação)
+## Publicar o sistema na Vercel
 
-São duas coisas diferentes:
+O projeto já vem pronto para a Vercel (`vercel.json` + `api/index.js`). Na Vercel não existe disco permanente, então os dados ficam num **banco Postgres (Neon)** e as fotos no **Vercel Blob**. Os dois são criados pelo próprio painel da Vercel:
 
-1. **Os sites dos clientes → Vercel.** Já está integrado: um clique publica em `site-xxx.vercel.app`, com HTTPS, CDN e domínio próprio do cliente configurável no painel da Vercel. O plano gratuito (Hobby) é para uso pessoal e não comercial, então para revender sites o indicado é o plano Pro.
+1. Importe o repositório na Vercel (Framework Preset: **Other**). Não precisa de comando de build.
+2. No projeto, abra a aba **Storage** → **Create Database** → **Neon (Postgres)** → conecte ao projeto. A Vercel cria a variável `DATABASE_URL`.
+3. Na mesma aba **Storage** → **Create** → **Blob** → conecte ao projeto. A Vercel cria `BLOB_READ_WRITE_TOKEN`.
+4. Em **Settings → Environment Variables**, crie:
+   - `APP_SECRET`: uma senha longa e aleatória. **Guarde-a**: ela criptografa as chaves de API dos usuários; se mudar, as chaves salvas precisam ser cadastradas de novo.
+   - `PUBLIC_URL` (opcional): o endereço do sistema, ex.: `https://appsites.vercel.app`.
+5. Em **Deployments**, clique em **Redeploy**.
 
-2. **Este sistema (painel, login, banco de dados) → um servidor com disco persistente**, como **Railway**, **Render** (com disco), **Fly.io** ou uma VPS (Hostinger, DigitalOcean, Contabo…). O `Dockerfile` já está pronto: monte um volume em `/data` e defina `PUBLIC_URL`.
+Se faltar alguma configuração, o sistema mostra uma tela explicando o que falta, em vez de dar erro.
 
-   O sistema **não roda na Vercel do jeito que está**, porque a Vercel não guarda arquivos (o banco e as fotos ficam em disco). Para levar o painel para a Vercel seria preciso trocar o armazenamento por um banco (ex.: Postgres/Supabase) e as fotos por um storage (ex.: Vercel Blob). É uma evolução possível, mas para começar o servidor com disco é mais simples e barato.
+> As funções estão configuradas com tempo máximo de 60 s (`vercel.json`), o que serve para todos os planos.
+
+### Sites dos clientes
+
+Os sites criados podem ser publicados de duas formas: em `seu-sistema/p/endereco`, ou como **projeto separado na Vercel** (botão "Publicar na Vercel", com o token configurado em Configurações), onde dá para ligar o domínio do cliente. O plano gratuito (Hobby) da Vercel é para uso pessoal e não comercial, então para revender sites o indicado é o plano Pro.
+
+### Servidor próprio (alternativa)
+
+Fora da Vercel, o sistema roda como servidor comum e guarda tudo em disco (`DATA_DIR`). Use o `Dockerfile` em Railway, Render, Fly.io ou uma VPS, montando um volume em `/data`:
 
 ```bash
 docker build -t appsites .
 docker run -p 3000:3000 -v appsites-data:/data -e PUBLIC_URL=https://app.seudominio.com appsites
 ```
 
-**Backup:** copie a pasta `DATA_DIR` (contém `db.json`, `media/` e `secret.key`).
+**Backup (servidor próprio):** copie a pasta `DATA_DIR` (contém `db.json`, `media/` e `secret.key`).
 
 ## Estrutura
 
 ```
-server.js               inicia o servidor
+server.js               inicia o servidor (modo servidor próprio)
+api/index.js            entrada na Vercel (Postgres + Blob)
+lib/pgstore.js          armazenamento em Postgres
 lib/app.js              rotas HTTP (API, páginas públicas, fotos, arquivos)
 lib/auth.js             cadastro, login (scrypt), sessões
 lib/google.js           Google Places API (busca, detalhes, fotos)
@@ -115,7 +131,8 @@ public/app.html         painel (js/app/*.js)
 public/editor.html      editor visual por blocos
 public/site.html        editor de sites com modelo HTML
 templates/              modelos HTML que vêm com o sistema
-test/                   testes (node --test), com Google/Vercel/IA simulados
+test/                   testes (node --test), com Google/Vercel/IA simulados;
+                        rodam duas vezes: modo arquivo e modo Postgres (Vercel)
 ```
 
 ## Testes

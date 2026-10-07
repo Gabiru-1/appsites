@@ -4,13 +4,60 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { Store } = require('../lib/store.js');
-const { createApp } = require('../lib/app.js');
+const { createApp, createHandler } = require('../lib/app.js');
+const { PgStore } = require('../lib/pgstore.js');
+const http = require('http');
+
+/**
+ * Banco Postgres simulado em memória (entende só as consultas do PgStore).
+ * Com TEST_STORE=pg, toda a suíte roda no modo usado na Vercel.
+ */
+function fakeSql() {
+  const rows = new Map();
+  const sql = {
+    writes: 0,
+    rows,
+    async query(text, params) {
+      if (/^create table/i.test(text)) return [];
+      if (/^select/i.test(text)) return [...rows.values()].map((r) => ({ collection: r.c, id: r.i, data: JSON.parse(r.d) }));
+      if (/^insert/i.test(text)) {
+        sql.writes++;
+        rows.set(params[0] + '|' + params[1], { c: params[0], i: params[1], d: params[2] });
+        return [];
+      }
+      if (/^delete/i.test(text)) {
+        sql.writes++;
+        rows.delete(params[0] + '|' + params[1]);
+        return [];
+      }
+      throw new Error('Consulta inesperada: ' + text);
+    },
+  };
+  return sql;
+}
+
+// Visão somente leitura do banco simulado, com a mesma cara do Store
+function sqlView(sql) {
+  return {
+    all(col) {
+      return [...sql.rows.values()].filter((r) => r.c === col).map((r) => JSON.parse(r.d));
+    },
+  };
+}
 
 /** Sobe o servidor numa porta livre, com dados em pasta temporária. */
 async function withServer(options, fn) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'appsites-test-'));
-  const store = new Store(null);
-  const server = createApp(store, Object.assign({ dataDir }, options));
+  let store;
+  let server;
+  if (process.env.TEST_STORE === 'pg') {
+    const sql = fakeSql();
+    store = sqlView(sql);
+    server = http.createServer(createHandler(Object.assign({ dataDir }, options, { openStore: () => PgStore.open(sql) })));
+  } else {
+    store = new Store(null);
+    server = createApp(store, Object.assign({ dataDir }, options));
+  }
   await new Promise((r) => server.listen(0, r));
   const base = 'http://127.0.0.1:' + server.address().port;
   try {
@@ -131,4 +178,4 @@ function installFakeApis() {
   return { google, vercel, restore: () => { globalThis.fetch = realFetch; } };
 }
 
-module.exports = { withServer, client, signup, installFakeApis, FAKE_JPEG };
+module.exports = { withServer, client, signup, installFakeApis, FAKE_JPEG, fakeSql };

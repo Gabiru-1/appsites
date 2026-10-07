@@ -75,3 +75,24 @@ test('IA: envia o pedido certo e lê o JSON', async () => {
   await assert.rejects(ai.generateCopy('', sitedata.EXAMPLE), /Configure sua chave da Anthropic/);
   if (saved) process.env.ANTHROPIC_API_KEY = saved;
 });
+
+test('PgStore: grava só o que mudou e apaga o que foi removido', async () => {
+  const { PgStore } = require('../lib/pgstore.js');
+  const { fakeSql } = require('./helpers.js');
+  const sql = fakeSql();
+
+  let s = await PgStore.open(sql);
+  s.insert('pages', { id: 'p1', title: 'Um' });
+  s.insert('pages', { id: 'p2', title: 'Dois' });
+  assert.strictEqual(await s.flush(), 2);
+  assert.strictEqual(await s.flush(), 0, 'nada mudou');
+
+  s = await PgStore.open(sql);
+  assert.strictEqual(s.all('pages').length, 2);
+  s.get('pages', 'p1').title = 'Um editado'; // alteração direta no objeto também é detectada
+  s.remove('pages', (p) => p.id === 'p2');
+  assert.strictEqual(await s.flush(), 2);
+
+  s = await PgStore.open(sql);
+  assert.deepStrictEqual(s.all('pages'), [{ id: 'p1', title: 'Um editado' }]);
+});
