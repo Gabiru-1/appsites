@@ -19,7 +19,7 @@ test('configurações: chaves ficam criptografadas e mascaradas', () => withServ
   const s = (await c.json('GET', '/api/settings')).data;
   assert.strictEqual(s.hasGoogle, true);
   assert.strictEqual(s.googleApiKey, '••••••y-ok', 'só o final aparece');
-  assert.ok(!JSON.stringify(store.all('users')).includes('google-key-ok'), 'chave não fica em texto puro');
+  assert.ok(!JSON.stringify(await store.allAsync('users')).includes('google-key-ok'), 'chave não fica em texto puro');
 
   // Reenviar o valor mascarado não apaga a chave
   await c.json('PUT', '/api/settings', { googleApiKey: s.googleApiKey });

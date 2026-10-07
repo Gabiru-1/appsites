@@ -17,7 +17,7 @@ test('login: cadastro, sessão, logout e senha', () => withServer({}, async (bas
   assert.strictEqual(r.data.user.email, 'ana@x.com');
   assert.strictEqual(r.data.user.role, 'admin', 'primeiro usuário vira admin');
   assert.ok(!('password' in r.data.user));
-  assert.ok(store.all('users')[0].password.startsWith('scrypt$'));
+  assert.ok((await store.allAsync('users'))[0].password.startsWith('scrypt$'));
 
   const bia = await signup(base, 'bia@x.com', 'Bia');
   assert.strictEqual((await bia.json('GET', '/api/auth/me')).data.user.role, 'user');

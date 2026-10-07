@@ -96,3 +96,38 @@ test('PgStore: grava só o que mudou e apaga o que foi removido', async () => {
   s = await PgStore.open(sql);
   assert.deepStrictEqual(s.all('pages'), [{ id: 'p1', title: 'Um editado' }]);
 });
+
+test('Supabase Storage: cria o bucket, envia, lê e apaga fotos', async () => {
+  const { createSupabaseMedia } = require('../lib/media.js');
+  const objects = new Map();
+  let buckets = [];
+  const base = 'https://proj.supabase.co/storage/v1/object/public/appsites-media/';
+  const fakeClient = {
+    storage: {
+      async getBucket(id) { return buckets.includes(id) ? { data: { id }, error: null } : { data: null, error: { message: 'Bucket not found' } }; },
+      async createBucket(id, opts) { assert.strictEqual(opts.public, true); buckets.push(id); return { data: { name: id }, error: null }; },
+      from() {
+        return {
+          async upload(p, buf, o) { objects.set(p, { buf, type: o.contentType }); return { data: { path: p }, error: null }; },
+          getPublicUrl(p) { return { data: { publicUrl: base + p } }; },
+          async remove(paths) { paths.forEach((p) => objects.delete(p)); return { data: [], error: null }; },
+          async list(prefix) { return { data: [...objects.keys()].filter((k) => k.startsWith(prefix + '/')).map((k) => ({ name: k.slice(prefix.length + 1) })), error: null }; },
+        };
+      },
+    },
+  };
+  const media = createSupabaseMedia('https://proj.supabase.co', 'chave', { client: fakeClient });
+  const lead = '11111111-2222-3333-4444-555555555555';
+  const url = await media.save(lead, 'foto-1.jpg', Buffer.from('x'), 'image/jpeg');
+  assert.deepStrictEqual(buckets, ['appsites-media'], 'bucket criado na primeira foto');
+  assert.ok(url.startsWith(base + 'media/' + lead + '/foto-1-'));
+  await media.save(lead, 'foto-2.png', Buffer.from('y'), 'image/png');
+  assert.strictEqual(buckets.length, 1, 'bucket criado só uma vez');
+  assert.strictEqual(objects.size, 2);
+
+  await media.remove(url);
+  assert.strictEqual(objects.size, 1);
+  await media.removeAll(lead);
+  assert.strictEqual(objects.size, 0);
+  assert.strictEqual(await media.read('https://outro-site.com/x.jpg'), null, 'não lê URLs de fora');
+});

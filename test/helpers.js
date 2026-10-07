@@ -50,12 +50,32 @@ async function withServer(options, fn) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'appsites-test-'));
   let store;
   let server;
-  if (process.env.TEST_STORE === 'pg') {
+  if (process.env.TEST_DATABASE_URL) {
+    // Postgres de verdade: um banco novo por teste
+    const { connect } = require('../lib/db.js');
+    const admin = connect(process.env.TEST_DATABASE_URL);
+    const name = 't_' + Math.random().toString(36).slice(2, 10);
+    await admin.query('create database ' + name);
+    await admin.pool.end();
+    const u = new URL(process.env.TEST_DATABASE_URL);
+    u.pathname = '/' + name;
+    const sql = connect(u.toString());
+    store = {
+      async allAsync(col) {
+        const rows = await sql.query('select data from docs where collection = $1', [col]);
+        return rows.map((r) => r.data);
+      },
+    };
+    server = http.createServer(createHandler(Object.assign({ dataDir }, options, { openStore: () => PgStore.open(sql) })));
+    server.on('close', () => sql.pool.end());
+  } else if (process.env.TEST_STORE === 'pg') {
     const sql = fakeSql();
     store = sqlView(sql);
+    store.allAsync = async (col) => store.all(col);
     server = http.createServer(createHandler(Object.assign({ dataDir }, options, { openStore: () => PgStore.open(sql) })));
   } else {
     store = new Store(null);
+    store.allAsync = async (col) => store.all(col);
     server = createApp(store, Object.assign({ dataDir }, options));
   }
   await new Promise((r) => server.listen(0, r));

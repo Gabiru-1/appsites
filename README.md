@@ -82,17 +82,37 @@ A lista completa de variáveis aparece na própria aba Modelos. Veja o exemplo e
 
 ## Publicar o sistema na Vercel
 
-O projeto já vem pronto para a Vercel (`vercel.json` + `api/index.js`). Na Vercel não existe disco permanente, então os dados ficam num **banco Postgres (Neon)** e as fotos no **Vercel Blob**. Os dois são criados pelo próprio painel da Vercel:
+O projeto já vem pronto para a Vercel (`vercel.json` + `api/index.js`). Como a Vercel não tem disco permanente, o sistema precisa de **um banco Postgres** (dados) e de **um lugar para as fotos**. Há duas opções:
 
-1. Importe o repositório na Vercel (Framework Preset: **Other**). Não precisa de comando de build.
-2. No projeto, abra a aba **Storage** → **Create Database** → **Neon (Postgres)** → conecte ao projeto. A Vercel cria a variável `DATABASE_URL`.
-3. Na mesma aba **Storage** → **Create** → **Blob** → conecte ao projeto. A Vercel cria `BLOB_READ_WRITE_TOKEN`.
-4. Em **Settings → Environment Variables**, crie:
-   - `APP_SECRET`: uma senha longa e aleatória. **Guarde-a**: ela criptografa as chaves de API dos usuários; se mudar, as chaves salvas precisam ser cadastradas de novo.
-   - `PUBLIC_URL` (opcional): o endereço do sistema, ex.: `https://appsites.vercel.app`.
-5. Em **Deployments**, clique em **Redeploy**.
+| | Banco de dados | Fotos |
+|---|---|---|
+| **Opção A: Supabase** (tudo num lugar só) | Postgres do Supabase | Supabase Storage (o bucket `appsites-media` é criado sozinho) |
+| **Opção B: Vercel** | Neon (Storage → Neon) | Vercel Blob (Storage → Blob) |
 
-Se faltar alguma configuração, o sistema mostra uma tela explicando o que falta, em vez de dar erro.
+### Opção A: Supabase
+
+1. Crie um projeto em [supabase.com](https://supabase.com).
+2. **Com a integração (mais fácil):** na Vercel, abra o projeto → **Integrations** (ou **Storage**) → **Supabase** → conecte ao seu projeto do Supabase. A Vercel cria sozinha `POSTGRES_URL`, `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY`.
+
+   **Sem a integração:** em **Settings → Environment Variables**, crie:
+   - `DATABASE_URL`: no Supabase, botão **Connect** → **Transaction pooler** (porta **6543**). Troque `[YOUR-PASSWORD]` pela senha do banco.
+   - `SUPABASE_URL`: em **Project Settings → API**, o campo *Project URL*.
+   - `SUPABASE_SERVICE_ROLE_KEY`: em **Project Settings → API**, a chave *service_role* (secreta; nunca coloque no navegador).
+3. Crie também `APP_SECRET` (veja abaixo) e faça **Redeploy**.
+
+A tabela `docs` é criada sozinha na primeira requisição. Os dados ficam em JSON por documento (coleção, id, dados), e dá para ver tudo no *Table Editor* do Supabase.
+
+### Opção B: Neon + Vercel Blob
+
+1. No projeto da Vercel, abra **Storage** → **Create Database** → **Neon (Postgres)** → conecte ao projeto (cria `DATABASE_URL`).
+2. **Storage** → **Create** → **Blob** → conecte ao projeto (cria `BLOB_READ_WRITE_TOKEN`).
+
+### Variáveis comuns
+
+- `APP_SECRET`: uma senha longa e aleatória. **Guarde-a**: ela criptografa as chaves de API dos usuários; se mudar, as chaves salvas precisam ser cadastradas de novo.
+- `PUBLIC_URL` (opcional): o endereço do sistema, ex.: `https://appsites.vercel.app`.
+
+Depois de criar as variáveis, vá em **Deployments → Redeploy**. Se faltar algo, o sistema mostra uma tela explicando o que falta, em vez de dar erro.
 
 > As funções estão configuradas com tempo máximo de 60 s (`vercel.json`), o que serve para todos os planos.
 
@@ -115,8 +135,9 @@ docker run -p 3000:3000 -v appsites-data:/data -e PUBLIC_URL=https://app.seudomi
 
 ```
 server.js               inicia o servidor (modo servidor próprio)
-api/index.js            entrada na Vercel (Postgres + Blob)
+api/index.js            entrada na Vercel (Supabase ou Neon + Blob)
 lib/pgstore.js          armazenamento em Postgres
+lib/db.js               conexão Postgres (Neon via HTTP, Supabase e outros via "pg")
 lib/app.js              rotas HTTP (API, páginas públicas, fotos, arquivos)
 lib/auth.js             cadastro, login (scrypt), sessões
 lib/google.js           Google Places API (busca, detalhes, fotos)
@@ -126,13 +147,14 @@ lib/templates.js        modelos de blocos e HTML (variáveis {{...}})
 lib/publish.js          renderização final, exportação e deploy na Vercel
 lib/ai.js               textos com Claude (opcional)
 lib/secrets.js          criptografia das chaves de API
-lib/zip.js, media.js    .zip de fotos e armazenamento de imagens
+lib/zip.js, media.js    .zip de fotos e armazenamento de imagens (disco, Vercel Blob ou Supabase Storage)
 public/app.html         painel (js/app/*.js)
 public/editor.html      editor visual por blocos
 public/site.html        editor de sites com modelo HTML
 templates/              modelos HTML que vêm com o sistema
 test/                   testes (node --test), com Google/Vercel/IA simulados;
-                        rodam duas vezes: modo arquivo e modo Postgres (Vercel)
+                        rodam duas vezes: modo arquivo e modo Postgres (Vercel).
+                        Com TEST_DATABASE_URL=postgres://... rodam num Postgres de verdade
 ```
 
 ## Testes
