@@ -131,3 +131,20 @@ test('Supabase Storage: cria o bucket, envia, lê e apaga fotos', async () => {
   assert.strictEqual(objects.size, 0);
   assert.strictEqual(await media.read('https://outro-site.com/x.jpg'), null, 'não lê URLs de fora');
 });
+
+test('variáveis da Vercel com ou sem prefixo', () => {
+  const { resolveConfig, relevantNames } = require('../lib/env.js');
+  let c = resolveConfig({ DATABASE_URL: 'a', SUPABASE_URL: 'u', SUPABASE_SERVICE_ROLE_KEY: 'k' });
+  assert.strictEqual(c.db.value, 'a');
+  c = resolveConfig({
+    STORAGE_POSTGRES_URL_NON_POOLING: 'errado',
+    STORAGE_POSTGRES_URL: 'pooler',
+    STORAGE_SUPABASE_URL: 'u',
+    STORAGE_SUPABASE_SERVICE_ROLE_KEY: 'k',
+  });
+  assert.strictEqual(c.db.value, 'pooler');
+  assert.strictEqual(c.supabaseUrl.value, 'u');
+  assert.strictEqual(c.supabaseKey.value, 'k');
+  assert.strictEqual(resolveConfig({}).db, null);
+  assert.deepStrictEqual(relevantNames({ PATH: 'x', APP_SECRET: 's', STORAGE_POSTGRES_URL: 'p' }), ['APP_SECRET', 'STORAGE_POSTGRES_URL']);
+});
